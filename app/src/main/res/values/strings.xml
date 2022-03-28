@@ -2,9 +2,10 @@
     <string name="app_name">NFCBomb</string>
     <string name="has_bomb">Currently holding the bomb!</string>
     <string name="no_bomb">You have got no bomb!</string>
+    <string name="no_bomb_need_update">You have got no bomb, update your tag!</string>
     <string name="create_bomb">Create bomb</string>
     <string name="pair">Pair with tag</string>
     <string name="pass_bomb">Give bomb!</string>
     <string name="check">Check tag</string>
-    <string name="duration_of_bomb">Duration of bomb</string>
+    <string name="duration_of_bomb">Duration of bomb (seconds)</string>
 </resources>

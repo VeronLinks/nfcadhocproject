@@ -23,15 +23,14 @@ import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.util.Calendar;
-import java.util.Date;
+import java.sql.Time;
 
 import android.provider.Settings.Secure;
 
 public class MainActivity extends AppCompatActivity {
 
     public static final String ERROR_DETECTED = "No NFC Tag detected.";
-    public static final String WRITE_SUCCESS = "Text written successfully.";
+    public static final String WRITE_SUCCESS = "Tag written successfully.";
     public static final String WRITE_ERROR = "Error writing. Try again.";
     private NfcAdapter m_NFCAdapter;
     private PendingIntent m_PendingIntent;
@@ -40,8 +39,7 @@ public class MainActivity extends AppCompatActivity {
     private Tag m_CurrentTag;
     private Context m_Context;
 
-    private String m_AndroidID;
-    private boolean m_HasBomb;
+    private BombData m_OwnData;
     private boolean m_JustHadBomb;
 
     private TextView m_TVHasBomb;
@@ -57,8 +55,12 @@ public class MainActivity extends AppCompatActivity {
 
         m_Context = this;
 
-        m_AndroidID = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
-        m_HasBomb = false;
+        m_OwnData = new BombData();
+        m_OwnData.m_PhoneID = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
+        m_OwnData.m_HasBomb = false;
+        m_OwnData.m_StartingTime = 0L;
+        m_OwnData.m_Endingtime = 0L;
+
         m_JustHadBomb = false;
 
         m_TVHasBomb = findViewById(R.id.tvHasBomb);
@@ -94,28 +96,70 @@ public class MainActivity extends AppCompatActivity {
             finish();
         }
 
-        ReadFromIntent(getIntent());
+        //ReadFromIntent(getIntent());
         m_PendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
         IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
         tagDetected.addCategory(Intent.CATEGORY_DEFAULT);
         m_WritingTagFilters = new IntentFilter[] { tagDetected };
     }
 
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        ReadFromIntent(intent);
+
+        if (NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction()) ||
+                NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction()) ||
+                NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
+            m_CurrentTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        WriteMode(false);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        WriteMode(true);
+    }
+
     private void PairWithTag() {
-        // TODO: set in tag m_AndroidID and bomb to false
+        m_OwnData.m_HasBomb = false;
+        Write(m_OwnData.RawData());
     }
 
     private void CreateBomb() {
-        // TODO: get time, add duration, change both booleans, tv, and check tag button text
+        String durationText = m_ETBombDuration.getText().toString();
+        int duration;
+        if (durationText.length() > 0) {
+            duration = Integer.parseInt(durationText);
+        }
+        else {
+            Toast.makeText(m_Context, "Please, specify duration of the bomb (in seconds)!", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        m_OwnData.m_HasBomb = true;
+        m_JustHadBomb = true;
+        Long tsLong = System.currentTimeMillis()/1000;
+        m_OwnData.m_StartingTime = tsLong;
+        m_OwnData.m_Endingtime = tsLong + duration;
+
+        UpdateGUIWithBombData();
     }
 
     private void Check() {
-        // TODO: read and if ID is yours, check if bomb. Else if have bomb, pass it.
-        Write("PlainText|"+m_EditMessage.getText().toString(), m_CurrentTag);
+        // TODO?
     }
 
     private void ReadFromIntent(Intent intent) {
         String action = intent.getAction();
+
         if (NfcAdapter.ACTION_TAG_DISCOVERED.equals(action) ||
             NfcAdapter.ACTION_TECH_DISCOVERED.equals(action) ||
             NfcAdapter.ACTION_NDEF_DISCOVERED.equals(action)) {
@@ -146,13 +190,52 @@ public class MainActivity extends AppCompatActivity {
             Log.e("Unsupported encoding: ", e.toString());
         }
 
-        m_NFCContents.setText("NFC Content: " + text);
+        // Read and if ID is yours, check if bomb. Else if have bomb, pass it.
+        BombData tagData = new BombData();
+        tagData.LoadData(text);
+        if (tagData.m_PhoneID.equals(m_OwnData.m_PhoneID)){
+            // Check if recently had bomb but not anymore to update tag. Else update phone from tag.
+            if (!m_OwnData.m_HasBomb && m_JustHadBomb) {
+                if (Write(m_OwnData.RawData())) {
+                    m_JustHadBomb = false;
+                }
+            }
+            else {
+                m_OwnData = tagData;
+            }
+        }
+        else if (m_OwnData.m_HasBomb) {
+            tagData.m_HasBomb = true;
+            tagData.m_StartingTime = m_OwnData.m_StartingTime;
+            tagData.m_Endingtime = m_OwnData.m_Endingtime;
+
+            if (Write(tagData.RawData())) {
+                m_OwnData.m_HasBomb = false;
+            }
+        }
+
+        UpdateGUIWithBombData();
     }
 
-    private void Write(String text) {
+    private void UpdateGUIWithBombData() {
+        if (m_OwnData.m_HasBomb) {
+            m_TVHasBomb.setText(R.string.has_bomb + "\nTime left: " +
+                    (m_OwnData.m_Endingtime - m_OwnData.m_StartingTime) + " seconds.");
+            m_JustHadBomb = true;
+        }
+        else if (m_JustHadBomb) {
+            m_TVHasBomb.setText(R.string.no_bomb_need_update);
+        }
+        else {
+            m_TVHasBomb.setText(R.string.no_bomb);
+        }
+    }
+
+    private boolean Write(String text) {
         try {
             if (m_CurrentTag == null) {
                 Toast.makeText(m_Context, ERROR_DETECTED, Toast.LENGTH_LONG).show();
+                return false;
             }
             else {
                 NdefRecord[] records = { CreateRecord(text) };
@@ -164,11 +247,14 @@ public class MainActivity extends AppCompatActivity {
                 tagNdef.close();
 
                 Toast.makeText(m_Context, WRITE_SUCCESS, Toast.LENGTH_LONG).show();
+
+                return true;
             }
         }
         catch (IOException | FormatException e) {
             Toast.makeText(m_Context, WRITE_ERROR, Toast.LENGTH_LONG).show();
             e.printStackTrace();
+            return false;
         }
     }
 
@@ -188,31 +274,6 @@ public class MainActivity extends AppCompatActivity {
         NdefRecord recordNFC = new NdefRecord(NdefRecord.TNF_WELL_KNOWN, NdefRecord.RTD_TEXT, new byte[0], payload);
 
         return recordNFC;
-    }
-
-    @Override
-    protected void onNewIntent(Intent intent) {
-        super.onNewIntent(intent);
-        setIntent(intent);
-        ReadFromIntent(intent);
-
-        if (NfcAdapter.ACTION_TAG_DISCOVERED.equals(intent.getAction()) ||
-                NfcAdapter.ACTION_TECH_DISCOVERED.equals(intent.getAction()) ||
-                NfcAdapter.ACTION_NDEF_DISCOVERED.equals(intent.getAction())) {
-            m_CurrentTag = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG);
-        }
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        WriteMode(false);
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        WriteMode(true);
     }
 
     private void WriteMode(boolean on) {
