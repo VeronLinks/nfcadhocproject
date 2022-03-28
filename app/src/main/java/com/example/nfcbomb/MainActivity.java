@@ -17,12 +17,16 @@ import android.os.Parcelable;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
+import java.util.Calendar;
+import java.util.Date;
+
+import android.provider.Settings.Secure;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -36,36 +40,51 @@ public class MainActivity extends AppCompatActivity {
     private Tag m_CurrentTag;
     private Context m_Context;
 
-    private TextView m_EditMessage;
-    private TextView m_NFCContents;
-    private Button m_ActivateButton;
+    private String m_AndroidID;
+    private boolean m_HasBomb;
+    private boolean m_JustHadBomb;
+
+    private TextView m_TVHasBomb;
+    private EditText m_ETBombDuration;
+    private Button m_btnCreateBomb;
+    private Button m_btnCheck;
+    private Button m_btnPair;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        m_EditMessage = findViewById(R.id.etMessage);
-        m_NFCContents = findViewById(R.id.txtNFCContents);
-        m_ActivateButton = findViewById(R.id.btnActivate);
         m_Context = this;
 
-        m_ActivateButton.setOnClickListener(new View.OnClickListener() {
+        m_AndroidID = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
+        m_HasBomb = false;
+        m_JustHadBomb = false;
+
+        m_TVHasBomb = findViewById(R.id.tvHasBomb);
+        m_ETBombDuration = findViewById(R.id.etDuration);
+        m_btnCreateBomb = findViewById(R.id.btnCreateBomb);
+        m_btnCheck = findViewById(R.id.btnCheck);
+        m_btnPair = findViewById(R.id.btnPair);
+
+        m_btnPair.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                try {
-                    if (m_CurrentTag == null) {
-                        Toast.makeText(m_Context, ERROR_DETECTED, Toast.LENGTH_LONG).show();
-                    }
-                    else {
-                        Write("PlainText|"+m_EditMessage.getText().toString(), m_CurrentTag);
-                        Toast.makeText(m_Context, WRITE_SUCCESS, Toast.LENGTH_LONG).show();
-                    }
-                }
-                catch (IOException | FormatException e) {
-                    Toast.makeText(m_Context, WRITE_ERROR, Toast.LENGTH_LONG).show();
-                    e.printStackTrace();
-                }
+                PairWithTag();
+            }
+        });
+
+        m_btnCreateBomb.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                CreateBomb();
+            }
+        });
+
+        m_btnCheck.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Check();
             }
         });
 
@@ -79,7 +98,20 @@ public class MainActivity extends AppCompatActivity {
         m_PendingIntent = PendingIntent.getActivity(this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
         IntentFilter tagDetected = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
         tagDetected.addCategory(Intent.CATEGORY_DEFAULT);
-        m_WritingTagFilters = new IntentFilter[] {tagDetected};
+        m_WritingTagFilters = new IntentFilter[] { tagDetected };
+    }
+
+    private void PairWithTag() {
+        // TODO: set in tag m_AndroidID and bomb to false
+    }
+
+    private void CreateBomb() {
+        // TODO: get time, add duration, change both booleans, tv, and check tag button text
+    }
+
+    private void Check() {
+        // TODO: read and if ID is yours, check if bomb. Else if have bomb, pass it.
+        Write("PlainText|"+m_EditMessage.getText().toString(), m_CurrentTag);
     }
 
     private void ReadFromIntent(Intent intent) {
@@ -117,14 +149,27 @@ public class MainActivity extends AppCompatActivity {
         m_NFCContents.setText("NFC Content: " + text);
     }
 
-    private void Write(String text, Tag tag) throws IOException, FormatException {
-        NdefRecord[] records = { CreateRecord(text) };
-        NdefMessage message = new NdefMessage(records);
+    private void Write(String text) {
+        try {
+            if (m_CurrentTag == null) {
+                Toast.makeText(m_Context, ERROR_DETECTED, Toast.LENGTH_LONG).show();
+            }
+            else {
+                NdefRecord[] records = { CreateRecord(text) };
+                NdefMessage message = new NdefMessage(records);
 
-        Ndef tagNdef = Ndef.get(tag);
-        tagNdef.connect();
-        tagNdef.writeNdefMessage(message);
-        tagNdef.close();
+                Ndef tagNdef = Ndef.get(m_CurrentTag);
+                tagNdef.connect();
+                tagNdef.writeNdefMessage(message);
+                tagNdef.close();
+
+                Toast.makeText(m_Context, WRITE_SUCCESS, Toast.LENGTH_LONG).show();
+            }
+        }
+        catch (IOException | FormatException e) {
+            Toast.makeText(m_Context, WRITE_ERROR, Toast.LENGTH_LONG).show();
+            e.printStackTrace();
+        }
     }
 
     private NdefRecord CreateRecord(String text) throws UnsupportedEncodingException {
