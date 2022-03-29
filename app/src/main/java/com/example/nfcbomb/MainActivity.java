@@ -23,14 +23,12 @@ import android.widget.Toast;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.sql.Time;
 
 import android.provider.Settings.Secure;
 
 public class MainActivity extends AppCompatActivity {
 
     public static final String ERROR_DETECTED = "No NFC Tag detected.";
-    public static final String WRITE_SUCCESS = "Tag written successfully.";
     public static final String WRITE_ERROR = "Error writing. Try again.";
     private NfcAdapter m_NFCAdapter;
     private PendingIntent m_PendingIntent;
@@ -40,12 +38,12 @@ public class MainActivity extends AppCompatActivity {
     private Context m_Context;
 
     private BombData m_OwnData;
+    private Thread m_BombThread;
     private boolean m_JustHadBomb;
 
     private TextView m_TVHasBomb;
     private EditText m_ETBombDuration;
     private Button m_btnCreateBomb;
-    private Button m_btnCheck;
     private Button m_btnPair;
 
     @Override
@@ -58,7 +56,6 @@ public class MainActivity extends AppCompatActivity {
         m_OwnData = new BombData();
         m_OwnData.m_PhoneID = Secure.getString(getContentResolver(), Secure.ANDROID_ID);
         m_OwnData.m_HasBomb = false;
-        m_OwnData.m_StartingTime = 0L;
         m_OwnData.m_Endingtime = 0L;
 
         m_JustHadBomb = false;
@@ -66,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
         m_TVHasBomb = findViewById(R.id.tvHasBomb);
         m_ETBombDuration = findViewById(R.id.etDuration);
         m_btnCreateBomb = findViewById(R.id.btnCreateBomb);
-        m_btnCheck = findViewById(R.id.btnCheck);
         m_btnPair = findViewById(R.id.btnPair);
 
         m_btnPair.setOnClickListener(new View.OnClickListener() {
@@ -80,13 +76,6 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 CreateBomb();
-            }
-        });
-
-        m_btnCheck.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Check();
             }
         });
 
@@ -130,7 +119,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void PairWithTag() {
         m_OwnData.m_HasBomb = false;
-        Write(m_OwnData.RawData());
+        if (Write(m_OwnData.RawData())) {
+            Toast.makeText(m_Context, "Paired tag!", Toast.LENGTH_SHORT).show();
+        }
+
+        UpdateGUIWithBombData();
     }
 
     private void CreateBomb() {
@@ -140,21 +133,18 @@ public class MainActivity extends AppCompatActivity {
             duration = Integer.parseInt(durationText);
         }
         else {
-            Toast.makeText(m_Context, "Please, specify duration of the bomb (in seconds)!", Toast.LENGTH_LONG).show();
+            Toast.makeText(m_Context, "Please, specify duration of the bomb (in seconds)!", Toast.LENGTH_SHORT).show();
             return;
         }
 
         m_OwnData.m_HasBomb = true;
         m_JustHadBomb = true;
         Long tsLong = System.currentTimeMillis()/1000;
-        m_OwnData.m_StartingTime = tsLong;
         m_OwnData.m_Endingtime = tsLong + duration;
 
         UpdateGUIWithBombData();
-    }
 
-    private void Check() {
-        // TODO?
+        StartBombThread();
     }
 
     private void ReadFromIntent(Intent intent) {
@@ -192,36 +182,64 @@ public class MainActivity extends AppCompatActivity {
 
         // Read and if ID is yours, check if bomb. Else if have bomb, pass it.
         BombData tagData = new BombData();
-        tagData.LoadData(text);
-        if (tagData.m_PhoneID.equals(m_OwnData.m_PhoneID)){
-            // Check if recently had bomb but not anymore to update tag. Else update phone from tag.
-            if (!m_OwnData.m_HasBomb && m_JustHadBomb) {
-                if (Write(m_OwnData.RawData())) {
-                    m_JustHadBomb = false;
+        if (tagData.LoadData(text)) {
+            if (tagData.m_PhoneID.equals(m_OwnData.m_PhoneID)){
+                // Check if recently had bomb but not anymore to update tag. Else update phone from tag.
+                if (!m_OwnData.m_HasBomb) {
+                    if (m_JustHadBomb){
+                        if (Write(m_OwnData.RawData())) {
+                            m_JustHadBomb = false;
+                            Toast.makeText(m_Context, "Updated tag!", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    else {
+                        m_OwnData = tagData;
+                        if (m_OwnData.m_HasBomb) {
+                            StartBombThread();
+                            Toast.makeText(m_Context, "You acquired a bomb!", Toast.LENGTH_SHORT).show();
+                        }
+                        else {
+                            Toast.makeText(m_Context, "Up to date!", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                }
+                else if (!tagData.m_HasBomb && Write(m_OwnData.RawData())) {
+                    Toast.makeText(m_Context, "Updated tag!", Toast.LENGTH_SHORT).show();
                 }
             }
-            else {
-                m_OwnData = tagData;
-            }
-        }
-        else if (m_OwnData.m_HasBomb) {
-            tagData.m_HasBomb = true;
-            tagData.m_StartingTime = m_OwnData.m_StartingTime;
-            tagData.m_Endingtime = m_OwnData.m_Endingtime;
+            else if (m_OwnData.m_HasBomb) {
+                tagData.m_HasBomb = true;
+                tagData.m_Endingtime = m_OwnData.m_Endingtime;
 
-            if (Write(tagData.RawData())) {
-                m_OwnData.m_HasBomb = false;
+                if (Write(tagData.RawData())) {
+                    m_OwnData.m_HasBomb = false;
+                    Toast.makeText(m_Context, "Bomb sent!", Toast.LENGTH_SHORT).show();
+                }
             }
-        }
 
-        UpdateGUIWithBombData();
+            UpdateGUIWithBombData();
+        }
+        else {
+            Toast.makeText(m_Context, "Could not read information", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void UpdateGUIWithBombData() {
         if (m_OwnData.m_HasBomb) {
-            m_TVHasBomb.setText(R.string.has_bomb + "\nTime left: " +
-                    (m_OwnData.m_Endingtime - m_OwnData.m_StartingTime) + " seconds.");
-            m_JustHadBomb = true;
+            Long tsLong = System.currentTimeMillis()/1000;
+            Long timeLeft = m_OwnData.m_Endingtime - tsLong;
+            if (timeLeft > 0) {
+                m_TVHasBomb.setText(R.string.has_bomb + "\nTime left: " +
+                        timeLeft + " seconds.");
+                m_JustHadBomb = true;
+            }
+            else {
+                m_OwnData.m_HasBomb = false;
+                m_OwnData.m_Endingtime = 0L;
+                m_JustHadBomb = true;
+                m_TVHasBomb.setText(R.string.exploded_bomb);
+                m_BombThread.interrupt();
+            }
         }
         else if (m_JustHadBomb) {
             m_TVHasBomb.setText(R.string.no_bomb_need_update);
@@ -245,8 +263,6 @@ public class MainActivity extends AppCompatActivity {
                 tagNdef.connect();
                 tagNdef.writeNdefMessage(message);
                 tagNdef.close();
-
-                Toast.makeText(m_Context, WRITE_SUCCESS, Toast.LENGTH_LONG).show();
 
                 return true;
             }
@@ -283,6 +299,30 @@ public class MainActivity extends AppCompatActivity {
         }
         else {
             m_NFCAdapter.disableForegroundDispatch(this);
+        }
+    }
+
+    private void StartBombThread() {
+        if (m_BombThread == null || !m_BombThread.isAlive()) {
+            m_BombThread = new Thread() {
+                @Override
+                public void run() {
+                    try {
+                        while (m_OwnData.m_HasBomb) {
+                            Thread.sleep(1000);
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    UpdateGUIWithBombData();
+                                }
+                            });
+                        }
+                    } catch (InterruptedException e) {
+                    }
+                }
+            };
+
+            m_BombThread.start();
         }
     }
 }

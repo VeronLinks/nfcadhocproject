@@ -3,9 +3,11 @@
     <string name="has_bomb">Currently holding the bomb!</string>
     <string name="no_bomb">You have got no bomb!</string>
     <string name="no_bomb_need_update">You have got no bomb, update your tag!</string>
+    <string name="exploded_bomb">THE BOMB EXPLODED! You lost.</string>
     <string name="create_bomb">Create bomb</string>
     <string name="pair">Pair with tag</string>
     <string name="pass_bomb">Give bomb!</string>
     <string name="check">Check tag</string>
     <string name="duration_of_bomb">Duration of bomb (seconds)</string>
+    <string name="pair_instructions">Pair your phone with your tag!</string>
 </resources>

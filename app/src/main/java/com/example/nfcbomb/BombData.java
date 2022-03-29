@@ -1,25 +1,30 @@
 package com.example.nfcbomb;
 
 public class BombData {
+    public static final String START_CHECK = "BOMBDATA";
     private static final String SEPARATOR = ";";
 
     public String m_PhoneID;
     public boolean m_HasBomb;
-    public Long m_StartingTime;
     public Long m_Endingtime;
 
     public String RawData() {
-        return m_PhoneID + SEPARATOR +
+        return START_CHECK + SEPARATOR +
+                m_PhoneID + SEPARATOR +
                 (m_HasBomb ? 1 : 0) + SEPARATOR +
-                m_StartingTime + SEPARATOR +
                 m_Endingtime;
     }
 
-    public void LoadData(String rawData) {
+    public boolean LoadData(String rawData) {
         String[] allData = rawData.split(SEPARATOR);
-        m_PhoneID = allData[0];
-        m_HasBomb = Integer.parseInt(allData[1]) == 1;
-        m_StartingTime = Long.parseLong(allData[2]);
-        m_Endingtime = Long.parseLong(allData[3]);
+        if (allData[0].equals(START_CHECK)) {
+            m_PhoneID = allData[1];
+            m_HasBomb = Integer.parseInt(allData[2]) == 1;
+            m_Endingtime = Long.parseLong(allData[3]);
+
+            return true;
+        }
+
+        return false;
     }
 }

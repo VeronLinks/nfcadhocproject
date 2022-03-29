@@ -12,11 +12,24 @@
         android:text="@string/no_bomb"
         android:textColor="@color/black"
         android:textSize="20sp"
-        app:layout_constraintBottom_toTopOf="@+id/btnCheck"
+        app:layout_constraintBottom_toTopOf="@+id/btnPair"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.366" />
+        app:layout_constraintVertical_bias="0.269" />
+
+    <EditText
+        android:id="@+id/etDuration"
+        android:layout_width="240dp"
+        android:layout_height="46dp"
+        android:hint="@string/duration_of_bomb"
+        android:inputType="number"
+        app:layout_constraintBottom_toTopOf="@+id/btnPair"
+        app:layout_constraintEnd_toStartOf="@+id/btnCreateBomb"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.519" />
 
     <Button
         android:id="@+id/btnCreateBomb"
@@ -26,40 +39,12 @@
         android:text="@string/create_bomb"
         android:textAlignment="center"
         android:textColor="@color/white"
-        app:layout_constraintBottom_toTopOf="@+id/btnCheck"
+        app:layout_constraintBottom_toTopOf="@+id/btnPair"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.94"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.727" />
-
-    <EditText
-        android:id="@+id/etDuration"
-        android:layout_width="240dp"
-        android:layout_height="46dp"
-        android:hint="@string/duration_of_bomb"
-        android:inputType="number"
-        app:layout_constraintBottom_toTopOf="@+id/btnCheck"
-        app:layout_constraintEnd_toStartOf="@+id/btnCreateBomb"
-        app:layout_constraintHorizontal_bias="1.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.727" />
-
-    <Button
-        android:id="@+id/btnCheck"
-        android:layout_width="188dp"
-        android:layout_height="91dp"
-        android:layout_weight="1"
-        android:text="@string/check"
-        android:textAlignment="center"
-        android:textColor="@color/white"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.497"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.637" />
+        app:layout_constraintVertical_bias="0.519" />
 
     <Button
         android:id="@+id/btnPair"
@@ -71,9 +56,8 @@
         android:textColor="@color/white"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.501"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btnCheck"
-        app:layout_constraintVertical_bias="0.626" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.811" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
